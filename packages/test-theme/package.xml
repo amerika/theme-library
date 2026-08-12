@@ -23,7 +23,7 @@
   <Documents>
     <DocumentSet importMode="root">
       <themes id="1062" key="81d772b0-675d-4837-b1ed-6a95a3dacfb4" parentID="-1" level="1" creatorID="-1" sortOrder="2" createDate="2025-10-13T04:06:12" updateDate="2025-10-29T10:35:44" nodeName="Themes" urlName="themes" path="-1,1062" isDoc="" nodeType="1056" nodeTypeAlias="themes" creatorName="Per Erik Martorina" writerName="Per Erik Martorina" writerID="-1" template="1055" isPublished="true">
-        <theme id="3067" key="d04b64fa-ab00-4a19-8b16-d573d4e3a639" parentID="1062" level="2" creatorID="1" sortOrder="12" createDate="2026-08-12T11:05:15" updateDate="2026-08-12T11:06:20" nodeName="Test theme" urlName="test-theme" path="-1,1062,3067" isDoc="" nodeType="1058" nodeTypeAlias="theme" creatorName="Roger Grimstad" writerName="Roger Grimstad" writerID="1" template="1057" isPublished="true">
+        <theme id="3068" key="d04b64fa-ab00-4a19-8b16-d573d4e3a639" parentID="1062" level="2" creatorID="1" sortOrder="12" createDate="2026-08-12T11:56:45" updateDate="2026-08-12T12:05:15" nodeName="Test theme" urlName="test-theme" path="-1,1062,3068" isDoc="" nodeType="1058" nodeTypeAlias="theme" creatorName="Roger Grimstad" writerName="Roger Grimstad" writerID="1" template="1057" isPublished="true">
           <gradient>0</gradient>
           <transparentHeader>0</transparentHeader>
           <darkMode>0</darkMode>
@@ -32,6 +32,7 @@
           <isSticky>0</isSticky>
           <showSitename>0</showSitename>
           <hamburgerMenu>0</hamburgerMenu>
+          <themeFolder><![CDATA[custom]]></themeFolder>
           <description><![CDATA[Just a test]]></description>
           <previewImage><![CDATA[[{"key":"288d0fe5-5fee-4516-89e4-ca2be6e52d98","mediaKey":"9f30771d-8cd3-406d-a0f6-07ec5baee78d","mediaTypeAlias":"Image","crops":[],"focalPoint":null}]]]></previewImage>
           <gallery><![CDATA[[{"key":"3ffdcff8-24c5-45fb-8fbd-dba3842a2908","mediaKey":"4ec8801c-33d0-4da8-9c2b-d1309e401358","mediaTypeAlias":"Image","crops":[],"focalPoint":null}]]]></gallery>
@@ -81,7 +82,893 @@
   <Templates />
   <Stylesheets />
   <Scripts />
-  <PartialViews />
+  <PartialViews>
+    <View path="custom\blockgrid\Components\carouselWidget.cshtml"><![CDATA[@inherits UmbracoViewPage<BlockGridItem<CarouselWidget, CarouselSettings>>
+@using Umbraco.Cms.Core;
+@using Umbraco.Cms.Core.Models.Blocks;
+@using Umbraco.Cms.Web.Common.PublishedModels;
+@using HTheme.Core.Utility;
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent;
+@inject IPublishedContentQuery ContentQuery
+@{
+
+    var content = Model.Content;
+    var settings = Model.Settings;
+    var heigthCarousel = !string.IsNullOrWhiteSpace(settings?.HeightCarousel) || settings?.HeightCarousel == "0" ? settings.HeightCarousel : "";
+    var containerWidth = settings?.Value<string>("containerWidth") ?? "";
+    var containerClass = Helper.GetContainerClass(containerWidth);
+    var slidesPerView = settings?.ItemsPerView > 0 ? settings.ItemsPerView : 3;
+    var isHeroMode = slidesPerView == 1;
+    var items = content.Items;
+    var splideOptions = Helper.GetSplideOptionsJson(settings!);
+    var widgetClasses = !string.IsNullOrEmpty(settings?.CssClass) ? settings.CssClass : ""; 
+
+    splideOptions = splideOptions.Replace("\"loop\":true", "\"type\":\"loop\"");
+    var anchorId = settings?.Value<string>("anchorId") ?? "";
+    var style = !string.IsNullOrWhiteSpace(heigthCarousel) ? $"height: {heigthCarousel};" : "";
+
+    var contentColorScope = settings?.ContentColorPicker;
+    if (String.IsNullOrEmpty(contentColorScope))
+    {
+        contentColorScope = ViewData["ContentColorScope"] as string;
+    }
+    if (!String.IsNullOrEmpty(contentColorScope))
+    {
+        contentColorScope = contentColorScope.Replace(".", "");
+        widgetClasses += " " + contentColorScope;
+    }
+
+    var animationClass = Helper.GetWidgetAnimationClass(settings);
+    var isScrollAnimation = Helper.IsWidgetScrollAnimation(settings);
+    style += Helper.GetWidgetAnimationStyle(settings);    
+}
+
+<section class="widget-carousel widget section relative @widgetClasses @animationClass" role="region" aria-label="Image Carousel" 
+        @{if (!string.IsNullOrEmpty(anchorId)) {<text> id="@anchorId" </text>}} 
+        @{if (!string.IsNullOrEmpty(style)){<text> style="@style" </text>}} @{if (isScrollAnimation) { <text> data-ce-anim-once="true" </text> }}
+>
+    <div class="@containerClass widget-container">
+        @if (!string.IsNullOrEmpty(content.Heading))
+        {
+                <div class="heading">
+                    @await Html.PartialAsync("Shared/Headings", new ValueTuple<string, string, string>("h2", content.Heading, ""))
+                </div>
+        }
+
+        <div class="carousel-wrapper">
+            <div class="splide splide-carousel @(isHeroMode ? "hero-mode" : "")"
+                 aria-live="polite"
+                 aria-roledescription="carousel"
+                 tabindex="0"
+                 @{
+                     if (!string.IsNullOrEmpty(splideOptions))
+                    {
+                         <text> data-splide='@splideOptions' </text>
+                     }
+                 
+                }
+                 heigthCarousel
+                >
+                <div class="splide__track">
+                    <ul class="splide__list">
+                        @if (items != null && items.Any())
+                        {
+                            @foreach (var item in items)
+                            {
+                                var itemContent = item.Content;
+                                var image = itemContent.HasProperty("image") ? itemContent.Value<MediaWithCrops>("image") : null;
+                                var heading = itemContent.HasProperty("heading") ? itemContent.Value<string>("heading") : null;
+                                var text = itemContent.HasProperty("text") ? itemContent.Value<string>("text") : null;
+                                var link = itemContent.HasProperty("link") ? itemContent.Value<Umbraco.Cms.Core.Models.Link>("link") : null;
+                                var imageUrl = image != null ? image.GetImageCropUrl(1280, 600) : string.Empty;
+
+                                @if (isHeroMode)
+                                {
+                                    <li class="splide__slide slide-item hero-slide-content" role="group" aria-label="Slide">
+                                        @if (image != null)
+                                        {
+                                                if (link != null && !string.IsNullOrEmpty(link.Url))
+                                                {
+                                                        <a href="@link.Url" target="@(link.Target ?? "_self")" tabindex="0">
+                                                            <img src="@imageUrl" alt="@(image.Name ?? heading ?? "Slide image")" class="hero-bg-image" />
+                                                            <div class="hero-overlay"></div>
+                                                        </a>
+                                                }
+                                                else
+                                                {
+                                                        <img src="@imageUrl" alt="@(image.Name ?? heading ?? "Slide image")" class="hero-bg-image" />
+                                                        <div class="hero-overlay"></div>
+                                                }
+                                        }
+                                        <div class="hero-text-content">
+                                            <div class="hero-text-inner">
+                                                @if (!string.IsNullOrEmpty(heading))
+                                                {
+                                                        if (link != null && !string.IsNullOrEmpty(link.Url))
+                                                        {
+                                                                <a href="@link.Url" target="@(link.Target ?? "_self")" tabindex="0">
+                                                                    <h3 class="hero-heading">@heading</h3>
+                                                                </a>
+                                                        }
+                                                        else
+                                                        {
+                                                                <h3 class="hero-heading">@heading</h3>
+                                                        }
+
+                                                }
+                                                @if (!string.IsNullOrEmpty(text))
+                                                {
+                                                        <div class="hero-text">@Html.Raw(text)</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </li>
+                                }
+                                else
+                                {
+                                        <li class="splide__slide slide-item bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
+                                            @if (image != null)
+                                            {
+                                                    <div class="aspect-video overflow-hidden">
+                                                        @if (link != null && !string.IsNullOrEmpty(link.Url))
+                                                        {
+                                                                <a href="@link.Url" target="@(link.Target ?? "_self")" tabindex="0">
+                                                                    <img src="@image.Url()" alt="@(image.Name ?? heading ?? "Slide image")" class="rounded-t-lg w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                                                                </a>                                                                
+                                                        }
+                                                        else
+                                                        {
+                                                                <img src="@image.Url()" alt="@(image.Name ?? heading ?? "Slide image")" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                                                        }
+                                                    </div>
+                                            }
+                                            <div class="p-6">
+                                                @if (!string.IsNullOrEmpty(heading))
+                                                {
+                                                    if (link != null && !string.IsNullOrEmpty(link.Url))
+                                                    {
+                                                        <a href="@link.Url" target="@(link.Target ?? "_self")" tabindex="0">
+                                                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">@heading</h3>                                                                            
+                                                        </a>                                                        
+                                                    }
+                                                    else
+                                                    {
+                                                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">@heading</h3>                                                                    
+                                                    }
+                                                    <h3>custom partial test</h3>
+                                                }
+                                                else
+                                                {
+                                                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">No Heading</h3>
+                                                }
+                                                @if (!string.IsNullOrEmpty(text))
+                                                {
+                                                    <div class="text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">@Html.Raw(text)</div>
+                                                }
+                                            </div>
+                                        </li>
+                                }
+                            }
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>]]></View>
+    <View path="custom\header\Header.cshtml"><![CDATA[@inherits UmbracoViewPage
+@using Umbraco.Cms.Core
+@using Umbraco.Cms.Core.Models;
+@using Umbraco.Cms.Core.Models.PublishedContent;
+@using HTheme.Core.Utility;
+@inject IPublishedContentQuery ContentQuery
+@inject Microsoft.AspNetCore.Mvc.ViewEngines.ICompositeViewEngine ViewEngine
+
+@{
+    // ============================================================================ 
+    // SITE & THEME SETUP
+    // ============================================================================
+    var site = Model.Root();
+    var siteRoot = ContentQuery.ContentAtRoot().FirstOrDefault(x => x.ContentType.Alias == "themes");
+    var theme = site as Site;
+
+    var themesNode = siteRoot?.Children(t => t.ContentType.Alias == "theme").Select(t => t as Theme)?.ToList();
+    var themes = themesNode;
+    var activeTheme = themes?.FirstOrDefault(t => t!.Key.ToString() == theme?.ChooseTheme) ?? themes?.FirstOrDefault();
+    var containerClass = Helper.GetContainerClass(activeTheme.HeaderContainerWidth);
+
+    // ============================================================================ 
+    // SITE BRANDING
+    // ============================================================================
+    var siteName = site?.Value<string>("siteName") ?? "Default Site Name";
+    var altsiteName = siteName;
+
+    if (activeTheme?.ShowSitename == false)
+    {
+        siteName = "";
+    }
+
+    var logoHeight = activeTheme?.LogoHeight?.Replace("--desktop-image-", "") ?? "50px";
+    var logoWidth = activeTheme?.LogoWidth?.Replace("--desktop-image-", "") ?? "auto";
+    var logoSpacing = HelperExtensions.ConvertCssVariablesToStyles(activeTheme?.LogoSpacing);
+
+    // ============================================================================ 
+    // HEADER CONFIGURATION
+    // ============================================================================
+    var headerHeight = activeTheme?.Height ?? "100px";
+    var headerSpacing = HelperExtensions.ConvertCssVariablesToStyles(activeTheme?.HeaderSpacing);
+    var isSticky = activeTheme?.IsSticky ?? false;
+    var transparentHeader = (Model.ContentType.Alias == "site") && (activeTheme.TransparentHeader);
+
+    // Header alignment
+    var headerAlignmentValue = activeTheme?.HeaderAlignment?.ToLowerInvariant() ?? "center";
+    var navAlignmentClass = headerAlignmentValue switch
+    {
+        "left" => "justify-start",
+        "right" => "justify-end",
+        _ => "justify-center"
+    };
+
+    // Header CSS classes
+    var cssSticky = (transparentHeader, isSticky) switch
+    {
+        (true, true) => "main-nav fixed z-50 top-0 left-0 right-0 bg-transparent transition-all duration-300",
+        (true, false) => "main-nav absolute z-50 top-0 left-0 right-0 bg-transparent transition-all duration-300",
+        (false, true) => "main-nav fixed z-20 top-0 left-0 right-0 border-b border-gray-200 dark:border-gray-600",
+        _ => "main-nav relative z-10 border-b border-gray-200 dark:border-gray-700"
+    };
+
+    var transparentClass = transparentHeader ? (isSticky ? "transparent-header sticky-on-scroll" : "transparent-header") : "";
+
+    // ============================================================================ 
+    // NAVIGATION CONFIGURATION
+    // ============================================================================
+    var navigationSpacing = HelperExtensions.ConvertCssVariablesToStyles(activeTheme?.NavigationSpacing);
+    var navigationSize = activeTheme?.NavigationSize?.Replace("--desktop-spacer-height:", "") ?? "16px";
+    var hamburgerMenu = activeTheme?.HamburgerMenu ?? false;
+
+    ViewData["NavigationSpacing"] = navigationSpacing;
+    ViewData["NavigationSize"] = navigationSize;
+    ViewData["TransparentHeader"] = transparentHeader;
+
+    var siteInfo = site as Site;
+    INavigation? navigationSource = (siteInfo?.FooterColumns?.Any() == true) ? siteInfo : site as INavigation;
+    var MainNavigationButtons = navigationSource?.MainNavigationButtons;
+    var hasMainNavigation = navigationSource?.MainNavigation?.Any() == true;
+
+    // ============================================================================ 
+    // SEARCH CONFIGURATION
+    // ============================================================================
+    var searchPage = site?.Children(t => t.ContentType.Alias == "search")?.FirstOrDefault();
+    var searchPageUrl = searchPage?.Url() ?? "/search";
+
+    // ============================================================================ 
+    // BUTTON THEME CONFIGURATION
+    // ============================================================================
+    var buttonBg1 = activeTheme?.ButtonBackground1 ?? "#007bff";
+    var buttonBg2 = activeTheme?.ButtonBackground2 ?? "#0056b3";
+    var buttonTextColor = activeTheme?.ButtonTextColor ?? "#ffffff";
+    var buttonBorderColor = activeTheme?.ButtonBorderColor ?? "transparent";
+    var isGradient = activeTheme?.Gradient ?? false;
+
+    var roundedCorners = activeTheme?.RoundedCorners switch
+    {
+        "rounded" => "5px",
+        "rounded-md" => "10px",
+        "rounded-lg" => "15px",
+        "rounded-xl" => "20px",
+        "rounded-full" => "80px",
+        "rounded-none" => "0px",
+        _ => "5px"
+    };
+
+    var buttonBackground = isGradient 
+        ? $"linear-gradient(135deg, {buttonBg1} 0%, {buttonBg2} 100%)" 
+        : buttonBg1;
+}
+
+@* ============================================================================ *@
+@* STYLES *@
+@* ============================================================================ *@
+<style>
+    /* Button Theme */
+    .theme-button {
+        background: @buttonBackground !important;
+        color: @buttonTextColor !important;
+        border: 1px solid @buttonBorderColor !important;
+        border-radius: @roundedCorners !important;
+    }
+
+    /* Search Input Focus Styles */
+    .search-input:focus {
+        --tw-ring-color: var(--header-nav-linkActive) !important;
+        border-color: var(--header-nav-linkActive) !important;
+    }
+
+    @if (transparentHeader)
+    {
+        @:/* Transparent Header Panel Styles */
+        @:#navbar-desktop-menu {
+            @:background: var(--header-backgroundColor) !important;
+            @:color: var(--header-textColor, inherit) !important;
+        @:}
+
+        @:#navbar-desktop-menu .nav-list {
+            @:background: transparent !important;
+            @:border: none !important;
+        @:}
+
+        @:#navbar-desktop-menu .nav-dropdown ul {
+            @:background: var(--header-backgroundColor) !important;
+        @:}
+    }
+
+    /* Responsive logo */
+    .site-header-nav .site-logo {
+        width: clamp(56px, 6vw, 110px);
+        height: auto;
+        max-height: clamp(32px, 3vw, 110px);
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    /* Responsive site name */
+    .site-header-nav .brand-text {
+        font-size: clamp(1rem, 1.4vw, 1.5rem);
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    /* Make all header nav text scale down */
+    .site-header-nav .nav-list a,
+    .site-header-nav .nav-list button {
+        font-size: clamp(0.9rem, 1vw, 1.25rem) !important;
+        line-height: 1.1;
+    }
+
+    /* Reduce spacing a bit as the screen gets smaller */
+    @@media (max-width: 1400px) {
+        .site-header-nav .nav-list > li {
+            margin-left: 8px !important;
+            margin-right: 8px !important;
+        }
+
+        .site-header-nav .theme-button .theme-button-text {
+            display: none !important;
+        }
+
+        .site-header-nav .theme-button-btn-48f3ff6f {
+            padding: 0.5rem !important;
+            gap: 0 !important;
+        }
+    }
+
+    @@media (max-width: 1100px) {
+        .site-header-nav .brand-text {
+            font-size: 1rem;
+        }
+
+        .site-header-nav .nav-list a,
+        .site-header-nav .nav-list button {
+            font-size: 0.95rem !important;
+        }
+
+        .site-header-nav .site-logo {
+            width: 48px;
+            max-height: 30px;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .site-header-nav .brand-text {
+            display: none;
+        }
+
+        .site-header-nav .site-logo {
+            width: 42px;
+            max-height: 28px;
+        }
+    }
+
+</style>
+
+@* ============================================================================ *@
+@* HEADER NAVIGATION *@
+@* ============================================================================ *@
+<nav class="site-header-nav" style="@(!string.IsNullOrWhiteSpace(headerSpacing) ? headerSpacing + ";" : "")height: @headerHeight; min-height:100px;">
+    <div class="@containerClass max-w-screen-xl flex items-center justify-between mx-auto p-4" style="height: 100%;">
+        
+        @* Logo *@
+        <a href="@site.Url()" class="flex items-center space-x-3 rtl:space-x-reverse flex-shrink-0">
+            <img src="@activeTheme?.SiteLogo?.Url()" alt="@altsiteName" class="site-logo" style="@logoWidth @logoHeight" />
+            <span class="self-center brand-text font-semibold whitespace-nowrap hidden sm:inline">@siteName</span>
+        </a>
+
+        @* Desktop Navigation *@
+        <div class="nav-desktop w-fit flex-none order-1 @navAlignmentClass mx-4" style="@(hamburgerMenu ? "display:none !important;" : "")">
+            @{ ViewData["NavSuffix"] = "-desktop"; }
+            @await Html.PartialAsync(Helper.GetPartialPath("header/Navigation", ViewEngine))
+        </div>
+
+        @* Right Side: Actions *@
+        <div class="flex items-center gap-2 order-2 flex-shrink-0">
+            @if (searchPage != null)
+            {
+                @* Search Icon (mobile) *@
+                <button type="button" data-collapse-toggle="mobile-search" aria-controls="mobile-search" aria-expanded="false" class="search-icon focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2" style="display: none;" id="search-toggle-btn">
+                    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+                    </svg>
+                    <span class="sr-only">Search</span>
+                </button>
+
+                @* Search Field (desktop) *@
+                <form action="@searchPageUrl" method="get" class="search-full relative" style="display: none;">
+                    <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+                        </svg>
+                        <span class="sr-only">Search icon</span>
+                    </div>
+                    <input type="text" name="q" id="search-navbar" class="search-input block w-full p-2 ps-10 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" placeholder="Search...">
+                </form>
+            }
+            @if (activeTheme.LanguageBar == true)
+            {
+                @* Language Bar *@
+                @await Html.PartialAsync(Helper.GetPartialPath("header/LanguageBar", ViewEngine))
+            }
+
+            @if (activeTheme.DarkMode == true)
+            {
+                @* Dark Mode Toggle *@
+                @await Html.PartialAsync(Helper.GetPartialPath("header/DarkModeToggle", ViewEngine))
+            }
+
+            @* Navigation Buttons *@
+            @if (MainNavigationButtons != null)
+            {
+                foreach (var button in MainNavigationButtons)
+                {
+                    var navButton = button.Content as NavigationButton;
+                    if (navButton != null)
+                    {
+                        @await Html.PartialAsync(Helper.GetPartialPath("components/Button", ViewEngine), navButton)
+                    }
+                }
+            }
+
+            @* Desktop Hamburger Menu Toggle *@
+            @if (hamburgerMenu)
+            {
+                <button data-collapse-toggle="navbar-desktop-menu" type="button" class="desktop-hamburger items-center p-2 w-10 h-10 justify-center text-sm rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-desktop-menu" aria-expanded="false">
+                    <span class="sr-only">Open desktop menu</span>
+                    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h15M1 7h15M1 13h15" />
+                    </svg>
+                </button>
+            }
+
+            @* Mobile Menu Toggle *@
+            @if (hasMainNavigation)
+            {
+                <button data-collapse-toggle="navbar-mobile-menu" type="button" class="nav-mobile-toggle items-center p-2 w-10 h-10 justify-center text-sm rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-mobile-menu" aria-expanded="false">
+                    <span class="sr-only">Open main menu</span>
+                    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h15M1 7h15M1 13h15" />
+                    </svg>
+                </button>
+            }
+        </div>
+    </div>
+
+    @* Mobile Navigation Menu *@
+    <div class="hidden w-full px-4 pb-4" id="navbar-mobile-menu">
+        @{ ViewData["NavSuffix"] = "-mobile"; }
+        @await Html.PartialAsync(Helper.GetPartialPath("header/Navigation", ViewEngine))
+    </div>
+
+    @* Desktop Hamburger Panel *@
+    <div class="hidden absolute right-4 top-full mt-2 z-40 w-72 rounded-lg shadow-lg hamburger-menu" id="navbar-desktop-menu">
+        <div class="nav-panel-inner">
+            @{ ViewData["NavSuffix"] = "-hamburger-desktop"; }
+            @await Html.PartialAsync(Helper.GetPartialPath("header/Navigation", ViewEngine))
+        </div>
+    </div>
+
+    @* Mobile Search Dropdown *@
+    @if (searchPage != null)
+    {
+        <div class="hidden w-full px-4 pb-4" id="mobile-search">
+            <form action="@searchPageUrl" method="get" class="relative">
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+                    </svg>
+                    <span class="sr-only">Search icon</span>
+                </div>
+                <input type="text" name="q" id="mobile-search-input" class="search-input block w-full p-2 ps-10 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" placeholder="Search...">
+            </form>
+        </div>
+    }
+</nav>
+
+@* ============================================================================ *@
+@* SCRIPTS *@
+@* ============================================================================ *@
+<script>
+    (function() {
+        'use strict';
+
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('[data-dropdown-toggle]');
+            if (!btn) return;
+
+            const targetId = btn.getAttribute('data-dropdown-toggle');
+            if (!targetId) return;
+
+            const target = document.getElementById(targetId);
+            if (!target) return;
+
+            const href = btn.getAttribute('data-href');
+            // determine visibility robustly
+            const isHidden = target.classList.contains('hidden') || getComputedStyle(target).display === 'none';
+
+            // If dropdown is visible already and a target URL exists, navigate immediately.
+            if (!isHidden && href) {
+                e.preventDefault();
+                // stop other handlers from running (capture-phase -> prevents later bubble handlers)
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                else e.stopPropagation();
+                window.location.href = href;
+            }
+        }, true);
+
+        // ========================================================================
+        // Collapse Toggle Handler (mobile menu, desktop hamburger, etc.)
+        // ========================================================================
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-collapse-toggle]');
+            if (!btn) return;
+
+            // Search toggle has its own dedicated handler below — skip it here.
+            if (btn.id === 'search-toggle-btn') return;
+
+            const targetId = btn.getAttribute('data-collapse-toggle');
+            if (!targetId) return;
+
+            const target = document.getElementById(targetId);
+            if (!target) return;
+
+            e.preventDefault();
+
+            const isHidden = target.classList.contains('hidden') || getComputedStyle(target).display === 'none';
+
+            if (isHidden) {
+                target.classList.remove('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                target.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // ========================================================================
+        // Desktop Hamburger Panel Positioning
+        // ========================================================================
+        const panel = document.getElementById('navbar-desktop-menu');
+        const toggleBtn = document.querySelector('.desktop-hamburger');
+
+        if (panel && toggleBtn) {
+            function positionPanel() {
+                const btnRect = toggleBtn.getBoundingClientRect();
+                const wasHidden = panel.classList.contains('hidden') || getComputedStyle(panel).display === 'none';
+                
+                if (wasHidden) {
+                    panel.style.visibility = 'hidden';
+                    panel.classList.remove('hidden');
+                }
+
+                const panelRect = panel.getBoundingClientRect();
+                let left = Math.round(btnRect.right - panelRect.width);
+
+                const margin = 8;
+                if (left + panelRect.width > window.innerWidth - margin) {
+                    left = Math.max(margin, window.innerWidth - panelRect.width - margin);
+                }
+                if (left < margin) left = margin;
+
+                const top = Math.round(btnRect.bottom + 8);
+                panel.style.position = 'fixed';
+                panel.style.top = top + 'px';
+                panel.style.left = left + 'px';
+                panel.style.right = 'auto';
+                panel.style.transformOrigin = 'top right';
+
+                if (wasHidden) {
+                    panel.classList.add('hidden');
+                    panel.style.visibility = '';
+                }
+            }
+
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(m => {
+                    if (m.type === 'attributes' && (m.attributeName === 'class' || m.attributeName === 'style')) {
+                        const isHidden = panel.classList.contains('hidden') || getComputedStyle(panel).display === 'none';
+                        if (!isHidden) positionPanel();
+                    }
+                });
+            });
+            observer.observe(panel, { attributes: true, attributeFilter: ['class', 'style'] });
+
+            window.addEventListener('resize', () => {
+                if (!(panel.classList.contains('hidden') || getComputedStyle(panel).display === 'none')) {
+                    positionPanel();
+                }
+            });
+
+            window.addEventListener('scroll', () => {
+                if (!(panel.classList.contains('hidden') || getComputedStyle(panel).display === 'none')) {
+                    positionPanel();
+                }
+            });
+
+            // Handle dropdown toggles inside the desktop hamburger panel.
+            panel.addEventListener('click', function(e) {
+                const btn = e.target.closest('[data-dropdown-toggle]');
+                if (!btn) return;
+
+                const targetId = btn.getAttribute('data-dropdown-toggle');
+                if (!targetId) return;
+
+                const target = document.getElementById(targetId);
+                if (!target) return;
+
+                const href = btn.getAttribute('data-href');
+
+                // Determine current visibility of the target
+                const isHidden = target.classList.contains('hidden') || getComputedStyle(target).display === 'none';
+
+                // If target is visible and there's a href, navigate on second click
+                if (!isHidden && href) {
+                    window.location.href = href;
+                    return;
+                }
+
+                const parentLi = btn.closest('li');
+                
+                if (isHidden) {
+                    target.classList.remove('hidden');
+                    target.classList.add('expanded');
+                    if (parentLi) parentLi.classList.add('expanded');
+                    btn.setAttribute('aria-expanded', 'true');
+                } else {
+                    target.classList.add('hidden');
+                    target.classList.remove('expanded');
+                    if (parentLi) parentLi.classList.remove('expanded');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+
+                positionPanel();
+            });
+
+            if (!(panel.classList.contains('hidden') || getComputedStyle(panel).display === 'none')) {
+                positionPanel();
+            }
+        }
+
+        // Global handler for dropdown toggles outside the desktop panel (desktop nav & mobile nav)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-dropdown-toggle]');
+            if (!btn) return;
+
+            // If this toggle is inside the desktop panel, let the panel's handler handle it.
+            if (btn.closest('#navbar-desktop-menu')) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const targetId = btn.getAttribute('data-dropdown-toggle');
+            if (!targetId) return;
+
+            const target = document.getElementById(targetId);
+            if (!target) return;
+
+            const href = btn.getAttribute('data-href');
+
+            // Determine current visibility of the target
+            const isHidden = target.classList.contains('hidden') || getComputedStyle(target).display === 'none';
+            const parentLi = btn.closest('li');
+
+            // If the dropdown is already visible and there is a page URL, navigate on second click.
+            if (!isHidden && href) {
+                window.location.href = href;
+                return;
+            }
+
+            if (isHidden) {
+                target.classList.remove('hidden');
+                target.classList.add('expanded');
+                if (parentLi) parentLi.classList.add('expanded');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                target.classList.add('hidden');
+                target.classList.remove('expanded');
+                if (parentLi) parentLi.classList.remove('expanded');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+
+            // Update arrow SVG rotation if present
+            const svg = btn.querySelector('svg');
+            if (svg) {
+                const rotated = !isHidden;
+                svg.style.transform = rotated ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+        });
+
+        @if (transparentHeader)
+        {
+            @:// ====================================================================
+            @:// Transparent Header Scroll Behavior
+            @:// ====================================================================
+            @:const header = document.querySelector('.transparent-header');
+            @:if (header) {
+                @:const isStickyOnScroll = header.classList.contains('sticky-on-scroll');
+                
+                @:function handleScroll() {
+                    @:if (window.scrollY > 50) {
+                        @:header.classList.add('scrolled');
+                        @:if (isStickyOnScroll) header.style.position = 'fixed';
+                    @:} else {
+                        @:header.classList.remove('scrolled');
+                        @:if (isStickyOnScroll) header.style.position = 'absolute';
+                    @:}
+                @:}
+
+                @:window.addEventListener('scroll', handleScroll);
+                @:handleScroll();
+            @:}
+        }
+
+        @if (!transparentHeader && isSticky)
+        {
+            @:// ====================================================================
+            @:// Sticky Header Body Padding
+            @:// ====================================================================
+            @:const stickyHeader = document.querySelector('.main-nav');
+            @:if (stickyHeader) {
+                @:const headerHeight = stickyHeader.offsetHeight;
+                @:document.body.style.paddingTop = headerHeight + 'px';
+            @:}
+        }
+
+        // ========================================================================
+        // Search Input Focus Management
+        // ========================================================================
+        const mobileSearchInput = document.getElementById('mobile-search-input');
+        const desktopSearchInput = document.getElementById('search-navbar');
+
+        function focusWithDelay(el) {
+            if (!el) return;
+            setTimeout(() => {
+                try {
+                    el.focus();
+                    if (typeof el.setSelectionRange === 'function') {
+                        const len = (el.value || '').length;
+                        el.setSelectionRange(len, len);
+                    }
+                } catch (err) {
+                    // Ignore focus errors
+                }
+            }, 120);
+        }
+
+        document.querySelectorAll('[data-collapse-toggle="mobile-search"], .search-icon').forEach(btn => {
+            btn.addEventListener('click', () => focusWithDelay(mobileSearchInput));
+        });
+
+        const mobileSearchContainer = document.getElementById('mobile-search');
+        if (mobileSearchContainer && mobileSearchInput) {
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(m => {
+                    if (m.type === 'attributes' && (m.attributeName === 'class' || m.attributeName === 'style')) {
+                        const isHidden = mobileSearchContainer.classList.contains('hidden') || 
+                                       getComputedStyle(mobileSearchContainer).display === 'none';
+                        if (!isHidden) focusWithDelay(mobileSearchInput);
+                    }
+                });
+            });
+            observer.observe(mobileSearchContainer, { attributes: true, attributeFilter: ['class', 'style'] });
+        }
+
+        const desktopForm = document.querySelector('.search-full');
+        if (desktopForm && desktopSearchInput) {
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(m => {
+                    if (m.type === 'attributes' && (m.attributeName === 'class' || m.attributeName === 'style')) {
+                        if (getComputedStyle(desktopForm).display !== 'none') {
+                            focusWithDelay(desktopSearchInput);
+                        }
+                    }
+                });
+            });
+            observer.observe(desktopForm, { attributes: true, attributeFilter: ['class', 'style'] });
+        }
+
+        // ========================================================================
+        // Search Form Submission (Enter Key)
+        // ========================================================================
+        document.querySelectorAll('#search-navbar, #mobile-search-input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const form = this.closest('form');
+                    if (form) form.submit();
+                }
+            });
+        });
+
+        // Close collapsible when clicking outside (but not for mobile menu items)
+        document.addEventListener('click', function(e) {
+            const openTargets = Array.from(document.querySelectorAll('[data-collapse-toggle]'))
+                .map(t => ({ button: t, id: t.getAttribute('data-collapse-toggle') }))
+                .filter(x => x.id && document.getElementById(x.id) && !document.getElementById(x.id).classList.contains('hidden'));
+
+            if (!openTargets.length) return;
+
+            const clickedInsideAny = openTargets.some(x => {
+                const el = document.getElementById(x.id);
+                // Don't auto-close mobile menu dropdowns
+                if (el && el.closest('#navbar-mobile-menu')) return true;
+                return el && (el.contains(e.target) || (x.button && x.button.contains(e.target)));
+            });
+
+            if (!clickedInsideAny) {
+                openTargets.forEach(x => {
+                    const el = document.getElementById(x.id);
+                    // Don't auto-close mobile menu dropdowns
+                    if (el && el.closest('#navbar-mobile-menu')) return;
+                    if (el) el.classList.add('hidden');
+                    if (x.button) x.button.setAttribute('aria-expanded', 'false');
+                });
+            }
+        }, true);
+
+        // ========================================================================
+        // Search Icon Toggle
+        // ========================================================================
+        const searchToggleBtn = document.getElementById('search-toggle-btn');
+        const searchPanel = document.getElementById('mobile-search');
+        if (searchToggleBtn && searchPanel) {
+            searchToggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isHidden = searchPanel.classList.contains('hidden');
+                if (isHidden) {
+                    searchPanel.classList.remove('hidden');
+                    focusWithDelay(document.getElementById('mobile-search-input'));
+                } else {
+                    searchPanel.classList.add('hidden');
+                }
+            });
+        }
+
+
+    })();
+</script>
+<script>
+    if (@activeTheme.DarkMode.ToString().ToLowerInvariant()) {
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+</script>
+]]></View>
+  </PartialViews>
   <DataTypes />
   <MediaItems />
 </umbPackage>
