@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<library version="1">
+  <package id="test-theme" title="Test theme" type="packageXml" artifact="packages/test-theme/package.xml"><description>Just a test theme package</description><preview path="packages/test-theme/aibuilder-generated-1777921025018.jpg" alt="Test theme preview" /></package>
+</library>
